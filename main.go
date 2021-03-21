@@ -3,9 +3,10 @@ package cwapi
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/streadway/amqp"
 	"log"
 	"strings"
+
+	"github.com/streadway/amqp"
 )
 
 func (res *Response) UnmarshalJSON(b []byte) error {
@@ -161,19 +162,23 @@ func (payload *reqPayload) MarshalJSON() ([]byte, error) {
 // cw2, eu, cw3, ru
 func NewClient(user string, password string, server ...string) (*Client, error) {
 	rabbitUrl := fmt.Sprintf(CW2, user, password)
+	var prefix string
 
 	if len(server) > 0 {
 		if strings.ToLower(server[0]) == "cw2" || strings.ToLower(server[0]) == "eu" {
 			rabbitUrl = fmt.Sprintf(CW2, user, password)
+			prefix = CW2PublicPrefix
 		} else if strings.ToLower(server[0]) == "cw3" || strings.ToLower(server[0]) == "ru" {
 			rabbitUrl = fmt.Sprintf(CW3, user, password)
+			prefix = CW3PublicPrefix
 		}
 	}
 
 	client := Client{
-		User:      user,
-		Password:  password,
-		RabbitUrl: rabbitUrl,
+		User:         user,
+		Password:     password,
+		RabbitUrl:    rabbitUrl,
+		PublicPrefix: prefix,
 	}
 
 	client.Updates = make(chan Response, 100)
@@ -192,42 +197,42 @@ func (c *Client) reStartConsumers() error {
 	}
 
 	if c.Deals != nil {
-		err := c.startDealsConsumer()
+		err := c.InitDeals()
 		if err != nil {
 			return err
 		}
 	}
 
 	if c.Duels != nil {
-		err := c.startDuelsConsumer()
+		err := c.InitDuels()
 		if err != nil {
 			return err
 		}
 	}
 
 	if c.Offers != nil {
-		err := c.startOffersConsumer()
+		err := c.InitOffers()
 		if err != nil {
 			return err
 		}
 	}
 
 	if c.SexDigest != nil {
-		err := c.startSexDigestConsumer()
+		err := c.InitSexDigest()
 		if err != nil {
 			return err
 		}
 	}
 
 	if c.YellowPages != nil {
-		err := c.startYellowPages()
+		err := c.InitYellowPages()
 		if err != nil {
 			return err
 		}
 	}
 
 	if c.AuctionDigest != nil {
-		err = c.startAuctionDigestConsumer()
+		err = c.InitAuctionDigest()
 		if err != nil {
 			return err
 		}

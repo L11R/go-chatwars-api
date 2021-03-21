@@ -2,14 +2,20 @@ package cwapi
 
 import (
 	"encoding/json"
-	"github.com/streadway/amqp"
 	"sync"
 	"time"
+
+	"github.com/streadway/amqp"
 )
 
 const (
 	CW2 = "amqps://%s:%s@api.chatwars.me:5673/"
 	CW3 = "amqps://%s:%s@api.chtwrs.com:5673/"
+
+	kafkaServer     = "digest-api.chtwrs.com:9092"
+	kafkaGroupID    = "some-super-duper-uniquie-id"
+	CW2PublicPrefix = "cw2-"
+	CW3PublicPrefix = "cw3-"
 )
 
 type ActionEnum string
@@ -156,10 +162,11 @@ func (res *Response) GetResultEnum() ResultEnum {
 }
 
 type Client struct {
-	User      string
-	Password  string
-	Updates   chan Response
-	RabbitUrl string
+	User         string
+	Password     string
+	Updates      chan Response
+	RabbitUrl    string
+	PublicPrefix string
 
 	Deals         chan Deal
 	Duels         chan Duel
@@ -207,8 +214,8 @@ type Duel struct {
 // Offers block
 type Offer struct {
 	SellerID     string `json:"sellerId"`
-	SellerCastle string `json:"sellerCastle"`
 	SellerName   string `json:"sellerName"`
+	SellerCastle string `json:"sellerCastle"`
 	Item         string `json:"item"`
 	Quantity     int    `json:"qty"`
 	Price        int    `json:"price"`
@@ -221,14 +228,34 @@ type SexDigestItem struct {
 }
 
 // yellow_pages block
-type Specialization struct {
-	Gloves int `json:"gloves"`
-	Coat   int `json:"coat"`
-	Helmet int `json:"helmet"`
-	Boots  int `json:"boots"`
-	Armor  int `json:"armor"`
-	Weapon int `json:"weapon"`
-	Shield int `json:"shield"`
+type CraftSpecialization struct {
+	Gloves int `json:"gloves,omitempty"`
+	Coat   int `json:"coat,omitempty"`
+	Helmet int `json:"helmet,omitempty"`
+	Boots  int `json:"boots,omitempty"`
+	Armor  int `json:"armor,omitempty"`
+	Weapon int `json:"weapon,omitempty"`
+	Shield int `json:"shield,omitempty"`
+}
+type CraftSpecializationsItem struct {
+	Level  int                  `json:"Level,omitempty"`
+	Values *CraftSpecialization `json:"Values,omitempty"`
+}
+
+type AlchemySpecialization struct {
+	Apothecary    int `json:"apothecary,omitempty"`
+	Dreamweaving  int `json:"dreamweaving,omitempty"`
+	Blandleafurry int `json:"blandleafurry,omitempty"`
+}
+
+type AlchemySpecializationsItem struct {
+	Level  int                    `json:"Level,omitempty"`
+	Values *AlchemySpecialization `json:"Values,omitempty"`
+}
+
+type Specializations struct {
+	QualityCraft *CraftSpecializationsItem   `json:"quality_craft,omitempty"`
+	Alchemy      *AlchemySpecializationsItem `json:"alchemy,omitempty"`
 }
 
 type OfferItem struct {
@@ -238,18 +265,21 @@ type OfferItem struct {
 }
 
 type YellowPage struct {
-	Link               string          `json:"link"`
-	Name               string          `json:"name"`
-	OwnerName          string          `json:"ownerName"`
-	OwnerCastle        string          `json:"ownerCastle"`
-	Kind               string          `json:"kind"`
-	Mana               int             `json:"mana"`
-	Offers             []OfferItem     `json:"offers"`
-	Specialization     *Specialization `json:"specialization"`
-	GuildDiscount      int             `json:"guildDiscount"`
-	CastleDiscount     int             `json:"castleDiscount"`
-	MaintenanceEnabled bool            `json:"maintenanceEnabled"`
-	MaintenanceCost    int             `json:"maintenanceCost"`
+	Link               string               `json:"link"`
+	Name               string               `json:"name"`
+	OwnerTag           string               `json:"ownerTag"`
+	OwnerName          string               `json:"ownerName"`
+	OwnerCastle        string               `json:"ownerCastle"`
+	Kind               string               `json:"kind"`
+	Mana               int                  `json:"mana"`
+	Offers             []OfferItem          `json:"offers"`
+	Specialization     *CraftSpecialization `json:"specialization,omitempty"`
+	QualityCraftLevel  int                  `json:"qualityCraftLevel,omitempty"`
+	Specializations    *Specializations     `json:"specializations,omitempty"`
+	GuildDiscount      int                  `json:"guildDiscount,omitempty"`
+	CastleDiscount     int                  `json:"castleDiscount,omitempty"`
+	MaintenanceEnabled bool                 `json:"maintenanceEnabled,omitempty"`
+	MaintenanceCost    int                  `json:"maintenanceCost,omitempty"`
 }
 
 type Request struct {
@@ -262,17 +292,19 @@ type Request struct {
 type AuctionDigestItem struct {
 	LotID        string         `json:"lotId"`
 	ItemName     string         `json:"itemName"`
-	SellerName   string         `json:"sellerName"`
-	Quality      *string        `json:"quality"`
-	SellerCastle string         `json:"sellerCastle"`
-	StartedAt    time.Time      `json:"startedAt"`
-	EndedAt      time.Time      `json:"endAt"`
-	BuyerCastle  *string        `json:"buyerCastle"`
-	Status       *string        `json:"status"`
-	FinishedAt   *time.Time     `json:"finishedAt"`
-	BuyerName    *string        `json:"buyerName"`
-	Price        int            `json:"price"`
+	Quality      string         `json:"quality"`
 	Stats        map[string]int `json:"stats"`
+	SellerName   string         `json:"sellerName"`
+	SellerTag    string         `json:"sellerTag"`
+	SellerCastle string         `json:"sellerCastle"`
+	EndedAt      time.Time      `json:"endAt"`
+	FinishedAt   time.Time      `json:"finishedAt"`
+	Status       string         `json:"status"`
+	StartedAt    time.Time      `json:"startedAt"`
+	BuyerCastle  string         `json:"buyerCastle"`
+	BuyerName    string         `json:"buyerName"`
+	BuyerTag     string         `json:"buyerTag"`
+	Price        int            `json:"price"`
 }
 
 type reqPayload struct {
